@@ -46,7 +46,7 @@ def process_and_send(fetch_records):
             
         try:
             print(f"正在处理: {id}. {title}")
-            BaseVideoClient.download_video(videourl, f"{id}.mp4")
+            BaseVideoClient.main(url)
             time.sleep(2)
             wxauto.wxchat(id, url, title)
             print(f"处理完成: {id}. {title}")
