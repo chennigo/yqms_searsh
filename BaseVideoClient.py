@@ -28,13 +28,13 @@ def main(url):
                  
         # 检查文件是否存在
         if os.path.exists(file_path):
-            skipped.append((info.title, file_path))
+            skipped.append((info.identifier, file_path))
             print(f"跳过已存在文件: {file_path}")
         else:
             to_download.append(info)
     
         # 自定义文件名（使用自定义名称 + 原扩展名）
-        custom_filename = f"{info.id}.{info.ext}"
+        custom_filename = f"{info.identifier}.{info.ext}"
         # 保持原目录结构，只替换文件名
         dirname = os.path.dirname(info.save_path)
         info.save_path = os.path.join(dirname, custom_filename)
@@ -55,8 +55,8 @@ def main(url):
     # 打印跳过的文件信息（可选）
     if skipped:
         print("\n以下文件已存在，被跳过:")
-        for title, path in skipped:
-            print(f"  {title} -> {path}")
+        for identifier, path in skipped:
+            print(f" {identifier} -> {path}")
 
 if __name__ == "__main__":
     # 假设你有一个URL传入，这里只是示例

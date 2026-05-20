@@ -2,77 +2,101 @@ import BaseVideoClient
 import wxauto
 import time
 import re
-import logging
-from DrissionPage  import Chromium
+import threading
+from DrissionPage import Chromium
 import schedule
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format='%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s',
-#     handlers=[
-#         logging.FileHandler('app.log', encoding='utf-8'),
-#         logging.StreamHandler()
-#     ]
-# )
-# logger = logging.getLogger(__name__)
 
+# 全局变量，用来在 main 和 子线程之间传递 page 对象
+current_page = None
+current_browser = None
 
-
-# 2. 封装获取数据的逻辑
 def fetch_data():
-    page = Chromium().latest_tab
+    """获取数据，返回浏览器和页面对象"""
+    print("正在获取新数据...")
+    browser = Chromium()
+    page = browser.latest_tab
     page.listen.start('updateNum')
     page.get('https://yqms.istarshine.com/v4/warning')
     page.ele('tag:span@@class=el-tree-label@@text()=全家桶').click.multi(2)
-    
-    data_packet = page.listen.wait()
-    data_body = data_packet.response.body
-    records = data_body.get('data', {}).get('records', [])
-    print(f"获取到 {len(records)} 条数据")
-    return records
+    return browser,page
 
-# 3. 封装下载和发送的逻辑
-def process_and_send(fetch_records):
-    if not fetch_records:
-        print("没有获取到新数据。")
-        return
-        
-    for data_detail in fetch_records:
-        url = data_detail.get('url', '')
-        title = data_detail.get('title', '')
-        videourl = data_detail.get('videourl', '')
-        id = data_detail.get('id', '')
-        if not videourl:
+def process_loop():
+    """持续运行的线程函数：只负责监听和处理"""
+    global current_page, current_browser
+    while True:
+        # 如果 page 还没准备好，稍微等一下
+        if current_page is None:
+            time.sleep(1)
             continue
-            
+        
         try:
-            print(f"正在处理: {id}. {title}")
-            BaseVideoClient.main(url)
-            time.sleep(2)
-            wxauto.wxchat(id, url, title)
-            print(f"处理完成: {id}. {title}")
+            # 这里会阻塞，直到等到新数据
+            # 因为是子线程在阻塞，所以不会卡住主线程的计时器
+            data_packet = current_page.listen.wait()
+            
+            # --- 以下是你的原始处理逻辑 ---
+            data_body = data_packet.response.body
+            fetch_records = data_body.get('data', {}).get('records', [])
+            for data_detail in fetch_records:
+                url = data_detail.get('url', '')
+                title = data_detail.get('title', '')
+                videourl = data_detail.get('videourl', '')
+                # identifier = re.search(r'/video/(\d+)', url).group(1)
+                match = re.search(r'video/(\d+)', url)
+                if match:
+                    identifier = match.group(1)
+                else:
+                    print(f"无法解析视频ID: {url}")
+                try:
+                    print(f"正在处理: {identifier}. {title}")
+                    BaseVideoClient.main(url)
+                    time.sleep(3)
+                    wxauto.wxchat(identifier, url, title)
+                    print(f"处理完成: {identifier}")
+                except Exception as e:
+                    print(f"处理 {identifier}. {title} 时发生错误: {e}")
         except Exception as e:
-            print(f"处理 {id}. {title} 时发生错误: {e}")
+            print(f"监听发生错误: {e}")
+            time.sleep(5)
 
 def main():
-    print("程序启动")
-    records = fetch_data()
-    process_and_send(records)
+    """每30分钟执行一次，更新 current_page"""
+    global current_page, current_browser
+    print("=" * 50)
+    print("执行定时任务：刷新数据")
+    print("=" * 50)
+    if current_browser is not None:
+        try:
+            print("关闭旧浏览器...")
+            current_browser.close()
+        except Exception as e:
+            print(f"关闭旧浏览器时出错: {e}")
 
-
-schedule.every(0.5).hours.do(main)
-
-
-# if __name__ == '__main__':
-#     schedule.run_pending()
-#     time.sleep(1)  # 避免CPU占用过高
+    # 获取新的数据
+    # 注意：因为 fetch_data 返回了 browser，我们需要接住它
+    new_browser, new_page = fetch_data()
+    
+    # 更新全局变量
+    current_browser = new_browser
+    current_page = new_page
+    print("数据刷新完成")
 
 if __name__ == '__main__':
-    print("调度器已启动，每30分钟执行一次...")
+    print("程序启动...")
     
-    # 2. 立即执行一次（可选，方便测试）
+    # 1. 先手动执行一次 main，把 current_page 初始化好
     main()
     
-    # 3. 开启死循环，保持脚本运行
+    # 2. 启动子线程，专门负责持续监听和处理
+    #    target=process_loop 表示这个线程去执行 process_loop 函数
+    t = threading.Thread(target=process_loop, daemon=True)
+    t.start()
+    print("数据处理线程已启动")
+    
+    # 3. 主线程只负责计时
+    schedule.every(30).minutes.do(main)
+    print("调度器已启动，每30分钟刷新一次数据...")
+    
     while True:
-        schedule.run_pending() # 检查是否有任务到期
-        time.sleep(1)    
+        schedule.run_pending()
+        time.sleep(1)

@@ -3,3 +3,4 @@
 v2.0  :	1.修复已知漏洞2.改变阻塞方式3.取消logging
 v2.1  :basevideoclient:not requests,true videofetch
 v2.2  :已修改已知错误，目前还未测试
+v3.0  :大幅度修改已知错误，目前未测试,准备加入keyword
