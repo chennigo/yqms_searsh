@@ -3,8 +3,12 @@ import wxauto
 import time
 import re
 import threading
-from DrissionPage import Chromium
+import pythoncom  # 添加 COM 初始化支持
+from DrissionPage import ChromiumPage
 import schedule
+
+# 在程序启动时初始化 COM
+pythoncom.CoInitialize()
 
 # 全局变量，用来在 main 和 子线程之间传递 page 对象
 current_page = None
@@ -13,7 +17,7 @@ current_browser = None
 def fetch_data():
     """获取数据，返回浏览器和页面对象"""
     print("正在获取新数据...")
-    browser = Chromium()
+    browser = ChromiumPage()
     page = browser.latest_tab
     page.listen.start('updateNum')
     page.get('https://yqms.istarshine.com/v4/warning')
@@ -23,6 +27,10 @@ def fetch_data():
 def process_loop():
     """持续运行的线程函数：只负责监听和处理"""
     global current_page, current_browser
+    
+    # 子线程中需要单独初始化 COM
+    pythoncom.CoInitialize()
+    
     while True:
         # 如果 page 还没准备好，稍微等一下
         if current_page is None:
@@ -68,7 +76,7 @@ def main():
     if current_browser is not None:
         try:
             print("关闭旧浏览器...")
-            current_browser.close()
+            current_browser.quit()
         except Exception as e:
             print(f"关闭旧浏览器时出错: {e}")
 

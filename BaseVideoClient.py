@@ -16,30 +16,37 @@ def main(url):
     acfun_url = url
     video_infos = video_client.parsefromurl(acfun_url)
 
-    # 用于存储实际需要下载的视频信息
     to_download = []
     skipped = []
 
     for info in video_infos:
+        # 先初始化 file_path，避免未赋值
+        file_path = None
         
         # 情况1：如果 info.save_path 已经是完整文件路径
         if hasattr(info, 'save_path') and info.save_path:
             file_path = info.save_path
-                 
-        # 检查文件是否存在
-        if os.path.exists(file_path):
-            skipped.append((info.identifier, file_path))
-            print(f"跳过已存在文件: {file_path}")
         else:
-            to_download.append(info)
-    
+            print(f"警告: {getattr(info, 'identifier', '未知')} 无有效 save_path，跳过。")
+            continue
+        
         # 自定义文件名（使用自定义名称 + 原扩展名）
         custom_filename = f"{info.identifier}.{info.ext}"
-        # 保持原目录结构，只替换文件名
-        dirname = os.path.dirname(info.save_path)
-        info.save_path = os.path.join(dirname, custom_filename)
+        dirname = os.path.dirname(file_path)
+        if not dirname:
+            dirname = os.getcwd()
+        custom_save_path = os.path.join(dirname, custom_filename)
         
-
+        # 检查自定义文件名是否已存在
+        if os.path.exists(custom_save_path):
+            skipped.append((info.identifier, custom_save_path))
+            print(f"跳过已存在文件: {custom_save_path}")
+            continue
+        
+        # 更新 info 的 save_path 为自定义文件名
+        info.save_path = custom_save_path
+        to_download.append(info)
+        
 
     # 如果有需要下载的视频，才调用下载
     if to_download:
