@@ -42,7 +42,6 @@ def wxchat(identifier, url, title):
         if not os.path.exists(file_path):
             print(f"错误：文件不存在 -> {file_path}")
             return
-
         # 发送文件
         wx.SendFiles(file_path)  # 使用已校验的完整路径
         wx.SendMsg(

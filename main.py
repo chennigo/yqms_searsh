@@ -6,7 +6,7 @@ import threading
 import pythoncom  # 添加 COM 初始化支持
 from DrissionPage import ChromiumPage
 import schedule
-
+import BaseVideoClient
 # 在程序启动时初始化 COM
 pythoncom.CoInitialize()
 
@@ -48,19 +48,24 @@ def process_loop():
             for data_detail in fetch_records:
                 url = data_detail.get('url', '')
                 title = data_detail.get('title', '')
-                videourl = data_detail.get('videourl', '')
                 # identifier = re.search(r'/video/(\d+)', url).group(1)
+                videoUrls = data_detail.get('videourl', '')
                 match = re.search(r'video/(\d+)', url)
+
                 if match:
                     identifier = match.group(1)
                 else:
                     print(f"无法解析视频ID: {url}")
                 try:
                     print(f"正在处理: {identifier}. {title}")
-                    BaseVideoClient.main(url)
-                    time.sleep(3)
-                    wxauto.wxchat(identifier, url, title)
-                    print(f"处理完成: {identifier}")
+                    # BaseVideoClient.main(url)
+                    downloaded = BaseVideoClient.down(identifier, url)
+                    if downloaded:  # 只有成功下载时才发送微信
+                        time.sleep(3)
+                        wxauto.wxchat(identifier, url, title)
+                        print(f"处理完成: {identifier}")
+                    else:
+                        print(f"跳过微信发送: {identifier}")
                 except Exception as e:
                     print(f"处理 {identifier}. {title} 时发生错误: {e}")
         except Exception as e:
@@ -79,9 +84,7 @@ def main():
             current_browser.quit()
         except Exception as e:
             print(f"关闭旧浏览器时出错: {e}")
-
-    # 获取新的数据
-    # 注意：因为 fetch_data 返回了 browser，我们需要接住它
+            
     new_browser, new_page = fetch_data()
     
     # 更新全局变量
