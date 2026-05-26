@@ -1,12 +1,20 @@
 from wxauto4 import WeChat
 import os
-
+from push_error import sc_send
 def wxchat(identifier, url, title):
     if not identifier:
         print("错误：identifier 为空，无法生成文件路径")
         return
-
-    wx = WeChat(resize=True, ads=False)
+    try:
+        wx = WeChat(resize=True, ads=False)
+    except Exception as e:
+        sc_send(
+            'SCT354857T488CbXZlyFhaEmjbW6Uyf8JV',
+            '微信自动化初始化失败',
+            f'错误详情：{str(e)}'
+    )
+        print(f"❌ 初始化微信失败：{e}")
+        return 
     target = "总群"
     wx.ChatWith(target)
     chatinfo = wx.ChatInfo()
@@ -22,10 +30,9 @@ def wxchat(identifier, url, title):
     if file_size == 0:
         print(f"错误：文件大小为0，禁止发送 -> {file_path}")
         return
-    elif file_size < 1024: # 可选：小于1KB通常也是无效的
+    elif file_size < 1024: 
         print(f"警告：文件极小 ({file_size} bytes)，可能存在问题 -> {file_path}")
 
-    # 只有检查通过了才发微信
     try:
         if chatinfo.get('chat_name') == target:
             wx.SendFiles(file_path)
@@ -35,4 +42,8 @@ def wxchat(identifier, url, title):
                 "类型:其他"
             )
     except Exception as e:
-        print(f"发送微信消息失败: {e}")
+         sc_send(
+            'SCT354857T488CbXZlyFhaEmjbW6Uyf8JV',
+            '微信消息发送失败',
+            f'错误详情：{str(e)}'
+        )

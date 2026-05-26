@@ -37,11 +37,8 @@ def process_loop():
             continue
         
         try:
-            # 这里会阻塞，直到等到新数据
-            # 因为是子线程在阻塞，所以不会卡住主线程的计时器
             data_packet = current_page.listen.wait()
             
-            # --- 以下是你的原始处理逻辑 ---
             data_body = data_packet.response.body
             fetch_records = data_body.get('data', {}).get('records', [])
             for data_detail in fetch_records:
@@ -94,19 +91,12 @@ def main():
 
 if __name__ == '__main__':
     print("程序启动...")
-    
-    # 1. 先手动执行一次 main，把 current_page 初始化好
     main()
-    
-    # 2. 启动子线程，专门负责持续监听和处理
-    #    target=process_loop 表示这个线程去执行 process_loop 函数
     t = threading.Thread(target=process_loop, daemon=True)
     t.start()
     print("数据处理线程已启动")
-    
-    # 3. 主线程只负责计时
-    schedule.every(40).minutes.do(main)
-    print("调度器已启动，每40分钟刷新一次数据...")
+    schedule.every(48).minutes.do(main)
+    print("调度器已启动，每48分钟刷新一次数据...")
     
     while True:
         schedule.run_pending()
