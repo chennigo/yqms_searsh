@@ -6,7 +6,6 @@ import threading
 import pythoncom  # 添加 COM 初始化支持
 from DrissionPage import ChromiumPage
 import schedule
-import BaseVideoClient
 # 在程序启动时初始化 COM
 pythoncom.CoInitialize()
 
@@ -56,11 +55,12 @@ def process_loop():
                     identifier = match.group(1)
                 else:
                     print(f"无法解析视频ID: {url}")
+                    continue
                 try:
                     print(f"正在处理: {identifier}. {title}")
                     # BaseVideoClient.main(url)
                     downloaded = BaseVideoClient.down(identifier, url)
-                    if downloaded:  # 只有成功下载时才发送微信
+                    if downloaded:
                         time.sleep(3)
                         wxauto.wxchat(identifier, url, title)
                         print(f"处理完成: {identifier}")
@@ -105,8 +105,8 @@ if __name__ == '__main__':
     print("数据处理线程已启动")
     
     # 3. 主线程只负责计时
-    schedule.every(30).minutes.do(main)
-    print("调度器已启动，每30分钟刷新一次数据...")
+    schedule.every(40).minutes.do(main)
+    print("调度器已启动，每40分钟刷新一次数据...")
     
     while True:
         schedule.run_pending()

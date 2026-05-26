@@ -1,0 +1,8 @@
+wxauto4
+time
+re
+threading
+pythoncom  # 添加 COM 初始化支持
+DrissionPage
+schedule
+serverchan-sdk

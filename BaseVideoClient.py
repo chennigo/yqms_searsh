@@ -25,8 +25,6 @@ def down(identifier, url):
     else:
         video_infos = video_client.parsefromurl(url)
         video_info = video_infos[0] if isinstance(video_infos, list) else video_infos
-        
-        # custom_save_path = os.path.join(save_dir, f"{identifier}.mp4")
         video_info.save_path = file_path
         
         to_download = []
