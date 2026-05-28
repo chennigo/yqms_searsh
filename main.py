@@ -3,48 +3,59 @@ import wxauto
 import time
 import re
 import threading
-import pythoncom  # 添加 COM 初始化支持
-from DrissionPage import ChromiumPage
+import pythoncom
+from DrissionPage import ChromiumPage, ChromiumOptions
 import schedule
 from push_error import sc_send
+
 # 在程序启动时初始化 COM
 pythoncom.CoInitialize()
 
 # 全局变量，用来在 main 和 子线程之间传递 page 对象
-current_page = None
-current_browser = None
+page = None
+browser = None
 
 def fetch_data():
     """获取数据，返回浏览器和页面对象"""
     print("正在获取新数据...")
-    browser = ChromiumPage()
+    co = ChromiumOptions().headless()
+    global browser, page
+    browser = ChromiumPage(co)
     page = browser.latest_tab
     page.listen.start('updateNum')
     page.get('https://yqms.istarshine.com/v4/warning')
-    page.ele('tag:span@@class=el-tree-label@@text()=全家桶').click.multi(2)
-    return browser,page
+    try:
+        page.ele('tag:span@@class=el-tree-label@@text()=全家桶').click.multi(2)
+    except Exception as e:
+        sc_send(
+            'SCT354857T488CbXZlyFhaEmjbW6Uyf8JV',
+            '点击全家桶失败',
+            f'错误详情：{str(e)}'
+        )
+        print(f"❌ 点击全家桶失败：{e}")
+    return browser, page
+
 def process_loop():
     """持续运行的线程函数：只负责监听和处理"""
-    global current_page, current_browser
     
     # 子线程中需要单独初始化 COM
     pythoncom.CoInitialize()
     
     while True:
-        # 如果 page 还没准备好，稍微等一下
-        if current_page is None:
-            time.sleep(1)
+        # 等待 page 初始化完成
+        if page is None:
+            print("⚠️ page 尚未初始化，等待 5 秒...")
+            time.sleep(5)
             continue
-        
+            
         try:
-            data_packet = current_page.listen.wait()
+            data_packet = page.listen.wait()
             
             data_body = data_packet.response.body
             fetch_records = data_body.get('data', {}).get('records', [])
             for data_detail in fetch_records:
                 url = data_detail.get('url', '')
                 title = data_detail.get('title', '')
-                # identifier = re.search(r'/video/(\d+)', url).group(1)
                 videoUrls = data_detail.get('videourl', '')
                 match = re.search(r'video/(\d+)', url)
 
@@ -53,9 +64,9 @@ def process_loop():
                 else:
                     print(f"无法解析视频ID: {url}")
                     continue
+                    
                 try:
                     print(f"正在处理: {identifier}. {title}")
-                    # BaseVideoClient.main(url)
                     downloaded = BaseVideoClient.down(identifier, url)
                     if downloaded:
                         time.sleep(3)
@@ -70,31 +81,39 @@ def process_loop():
             time.sleep(5)
 
 def main():
-    """每30分钟执行一次，更新 current_page"""
-    global current_page, current_browser
     print("=" * 50)
     print("执行定时任务：刷新数据")
     print("=" * 50)
-    if current_browser is not None:
+    
+    global browser, page
+    
+    # 先关闭旧的浏览器（如果存在）
+    if browser is not None:
         try:
             print("关闭旧浏览器...")
-            current_browser.quit()
+            browser.quit()
+            browser = None
+            page = None  # 重置 page 为 None
         except Exception as e:
             print(f"关闭旧浏览器时出错: {e}")
-            
-    new_browser, new_page = fetch_data()
     
-    # 更新全局变量
-    current_browser = new_browser
-    current_page = new_page
+    # 重新获取数据
+    print("获取新数据...")
+    fetch_data()  # 调用 fetch_data() 初始化 browser 和 page
     print("数据刷新完成")
 
 if __name__ == '__main__':
     print("程序启动...")
-    main()
+    
+    # 首次启动时先初始化浏览器和页面
+    main()  # 这会调用 fetch_data() 初始化全局变量
+    
+    # 启动处理线程
     t = threading.Thread(target=process_loop, daemon=True)
     t.start()
     print("数据处理线程已启动")
+    
+    # 设置定时任务
     schedule.every(48).minutes.do(main)
     print("调度器已启动，每48分钟刷新一次数据...")
     
