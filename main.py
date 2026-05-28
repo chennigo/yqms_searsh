@@ -6,6 +6,7 @@ import threading
 import pythoncom  # 添加 COM 初始化支持
 from DrissionPage import ChromiumPage
 import schedule
+from push_error import sc_send
 # 在程序启动时初始化 COM
 pythoncom.CoInitialize()
 
@@ -22,7 +23,6 @@ def fetch_data():
     page.get('https://yqms.istarshine.com/v4/warning')
     page.ele('tag:span@@class=el-tree-label@@text()=全家桶').click.multi(2)
     return browser,page
-
 def process_loop():
     """持续运行的线程函数：只负责监听和处理"""
     global current_page, current_browser
