@@ -1,6 +1,7 @@
 from wxauto4 import WeChat
 import os
 from push_error import sc_send
+from BaseVideoClient import down
 def wxchat(identifier, url, title):
     try:
         wx = WeChat(resize=True, ads=False)
@@ -24,10 +25,13 @@ def wxchat(identifier, url, title):
     file_size = os.path.getsize(file_path)
     try:
         if file_size == 0:
-            print(f"错误：文件大小为0，禁止发送 -> {file_path}")
-            return
-        elif file_size < 1024: 
-            print(f"警告：文件极小 ({file_size} bytes)，可能存在问题 -> {file_path}")
+            print(f"错误：第一次文件大小为0，再次下载 -> {file_path}")
+            down(identifier, url)
+            # 重新校验大小
+            file_size = os.path.getsize(file_path)
+            if file_size == 0:
+                print("重新下载后文件仍为空，终止流程")
+                return
     except Exception as e:
          sc_send(
             'SCT354857T488CbXZlyFhaEmjbW6Uyf8JV',
