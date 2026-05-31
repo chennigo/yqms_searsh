@@ -1,4 +1,6 @@
 wxauto4
-pythoncom  # 添加 COM 初始化支持
+pywin32
+videofetch
 DrissionPage
+schedule
 serverchan-sdk
